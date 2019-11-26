@@ -1,0 +1,88 @@
+<launch>
+
+  <!-- these are the arguments you can pass this launch file, for example paused:=true -->
+  <!-- <arg name="model" default="$(find sawyer_description)/urdf/sawyer_base.urdf.xacro"/> -->
+  <arg name="model" default="$(find sawyer_description)/urdf/sawyer.urdf.xacro"/>
+  <arg name="paused" default="false"/>
+  <arg name="use_sim_time" default="true"/>
+  <arg name="gui" default="true"/>
+  <arg name="headless" default="false"/>
+  <arg name="debug" default="false"/>
+
+  <!-- This argument loads the electric gripper, for example electric_gripper:=true -->
+  <arg name="electric_gripper" default="true"/>
+  <!-- This argument loads sawyer's pedestal URDF -->
+  <arg name="pedestal" default="true"/>
+  <!-- This argument fixes the robot statically to the world -->
+  <arg name="static" default="true"/>
+  <!-- This argument dictates whether gazebo should be launched in this file -->
+  <arg name="load_gazebo" default="true"/>
+  <!-- This argument sets the initial joint states -->
+  <arg name="initial_joint_states"
+    default=" -J sawyer::right_j0 -0.27
+              -J sawyer::right_j1 1.05
+              -J sawyer::right_j2 0.00
+              -J sawyer::right_j3 0.49
+              -J sawyer::right_j4 -0.08
+              -J sawyer::right_j5 -0.06
+              -J sawyer::right_j6 0.027
+              -J sawyer::head_pan 0.00"/>
+
+  <!-- Load joint controller configurations from YAML file to parameter server -->
+  <!-- <rosparam file="$(find sawyer_control)/config/sawyer_control.yaml" command="load"/> -->
+  <rosparam file="$(find sawyer_control)/config/sawyer_trajectory_control.yaml" command="load"/>
+
+  <!-- load the controllers -->
+  <node name="controller_spawner" pkg="controller_manager" type="spawner" respawn="false"
+    output="screen" ns="/sawyer" args="
+                                  joint_state_controller
+                                  arm_position_controller"/>
+                                  <!-- right_wrist_position_controller
+                                  right_j0_position_controller 
+                                  right_j1_position_controller 
+                                  right_j2_position_controller 
+                                  right_j3_position_controller 
+                                  right_j4_position_controller
+                                  right_j5_position_controller
+                                  right_j6_position_controller
+                                  right_j1_2_position_controller
+                                  right_j2-2_position_controller
+                                  right_j4-2_position_controller-->
+  
+  <!-- <node name="controller_spawner" pkg="controller_manager" type="spawner" args="joint_state_controller sawyer_joint_controller"/> -->
+
+  <!-- We resume the logic in empty_world.launch, changing only the name of the world to be launched -->
+  <include file="$(find gazebo_ros)/launch/empty_world.launch">
+    <!-- <arg name="world_name" value="$(find fourth_robot_gazebo)/worlds/clearpath_playpen.world"/> -->
+    <arg name="debug" value="$(arg debug)" />
+    <arg name="gui" value="$(arg gui)" />
+    <arg name="paused" value="$(arg paused)"/>
+    <arg name="use_sim_time" value="$(arg use_sim_time)"/>
+    <arg name="headless" value="$(arg headless)"/>
+  </include>
+
+  <!-- lrf merger -->
+  <!--<include file="$(find fourth_robot_bringup)/launch/sensors/lrf_merger.launch"/>-->
+
+  <!-- Load the URDF into the ROS Parameter Server -->
+  <!-- <param name="robot_description" command="$(find xacro)/xacro.py '$(arg model)'" /> -->
+  <arg name="load_robot_description" default="true"/>
+  <param if="$(arg load_robot_description)" name="robot_description" command="$(find xacro)/xacro --inorder $(find sawyer_description)/urdf/sawyer.urdf.xacro
+      gazebo:=true electric_gripper:=$(arg electric_gripper) pedestal:=$(arg pedestal) static:=$(arg static)"/>
+
+  <!-- Run a python script to the send a service call to gazebo_ros to spawn a URDF robot -->
+  <node name="urdf_spawner" pkg="gazebo_ros" type="spawn_model" respawn="false" output="screen" args="-urdf -z 0.93 -model sawyer $(arg initial_joint_states) -param robot_description"/>
+  <!-- <node name="urdf_spawner" pkg="gazebo_ros" type="spawn_model" respawn="false" output="screen" args="-urdf -z 0.93 -model sawyer -param robot_description"/> -->
+
+  <!-- convert joint states to TF transforms for rviz, etc -->
+  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" respawn="false" output="screen">
+    <remap from="/joint_states" to="/sawyer/joint_states" />
+  </node>
+  <!-- <node name="rviz" pkg="rviz" type="rviz" args="-d $(arg rvizconfig)" required="true" /> -->
+
+  <node name="rqt_plot" pkg="rqt_plot" type="rqt_plot"/>
+  <node name="rqt_publisher" pkg="rqt_publisher" type="rqt_publisher"/>
+
+  <!-- ros_control motoman launch file -->
+  <!--<include file="$(find fourth_robot_control)/launch/fourth_robot_control.launch"/>-->
+</launch>

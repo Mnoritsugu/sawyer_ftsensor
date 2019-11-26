@@ -1,0 +1,28 @@
+<launch>
+
+  <!-- Load joint controller configurations from YAML file to parameter server -->
+  <rosparam file="$(find sawyer_control)/config/sawyer_control.yaml" command="load"/>
+
+  <!-- load the controllers -->
+  <node name="controller_spawner" pkg="controller_manager" type="spawner" respawn="false"
+    output="screen" ns="/sawyer" args="
+    joint_state_controller
+    right_j0_position_controller 
+    right_j1_position_controller 
+    right_j2_position_controller 
+    right_j3_position_controller 
+    right_j4_position_controller
+    right_j5_position_controller
+    right_j6_position_controller"/>
+    <!-- right_wrist_position_controller
+    right_j1_2_position_controller
+    right_j2-2_position_controller
+    right_j4-2_position_controller-->
+
+  <!-- convert joint states to TF transforms for rviz, etc -->
+  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher"
+    respawn="false" output="screen">
+    <remap from="/joint_states" to="/sawyer_base/joint_states" />
+  </node>
+
+</launch>
